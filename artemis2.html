@@ -587,6 +587,25 @@ async function init() {
   // CONFIGURATION
   // ===============================================================
 
+  // Load Spacecraft and Moon trajectory data in multiple frames
+  // format: { time: ISO string, x, y, z in meters, vx, vy, vz in m/s}
+  // const dataS = await loadTrajectoryCSV('Artemis2_geocentric.csv');
+  // const dataM = await loadTrajectoryCSV('Moon_geocentric.csv');
+  all_dataS = [
+    await loadTrajectoryCSV('data/Artemis2_geocentric.csv'),
+    await loadTrajectoryCSV('data/Artemis2_orbit_plane.csv'),
+    await loadTrajectoryCSV('data/Artemis2_corotating_mean.csv'),
+    await loadTrajectoryCSV('data/Artemis2_corotating_inst.csv'),
+    // await loadTrajectoryCSV('Artemis2_corotating_fixed.csv'),
+  ]
+  all_dataM = [
+    await loadTrajectoryCSV('data/Moon_geocentric.csv'),
+    await loadTrajectoryCSV('data/Moon_orbit_plane.csv'),
+    await loadTrajectoryCSV('data/Moon_corotating_mean.csv'),
+    await loadTrajectoryCSV('data/Moon_corotating_inst.csv'),
+    // await loadTrajectoryCSV('Moon_corotating_fixed.csv'),
+  ]
+
   // Mission phase milestones -- don't forget to update these if
   // the schedule changes!
   const LAUNCH = new Date('2026-04-01T22:35:12Z');
@@ -597,32 +616,13 @@ async function init() {
   const SPLASHDOWN = new Date('2026-04-11T00:17:12Z');
   const MISSION_END = new Date('2026-04-11T00:32:12Z');
 
-  // Load Spacecraft and Moon trajectory data in multiple frames
-  // format: { time: ISO string, x, y, z in meters, vx, vy, vz in m/s}
-  // const dataS = await loadTrajectoryCSV('Artemis2_geocentric.csv');
-  // const dataM = await loadTrajectoryCSV('Moon_geocentric.csv');
-  all_dataS = [
-    await loadTrajectoryCSV('Artemis2_geocentric.csv'),
-    await loadTrajectoryCSV('Artemis2_orbit_plane.csv'),
-    await loadTrajectoryCSV('Artemis2_corotating_mean.csv'),
-    await loadTrajectoryCSV('Artemis2_corotating_inst.csv'),
-    // await loadTrajectoryCSV('Artemis2_corotating_fixed.csv'),
-  ]
-  all_dataM = [
-    await loadTrajectoryCSV('Moon_geocentric.csv'),
-    await loadTrajectoryCSV('Moon_orbit_plane.csv'),
-    await loadTrajectoryCSV('Moon_corotating_mean.csv'),
-    await loadTrajectoryCSV('Moon_corotating_inst.csv'),
-    // await loadTrajectoryCSV('Moon_corotating_fixed.csv'),
-  ]
-
   // Mission events { time: ISO string, name: string }
   // Sorted by time (the UI will sort them regardless)
   var MISSION_EVENTS = [
-  { time: '2026-04-01T22:35:12Z', name: 'Launch April 1, 22:35:12 UTC' },
+  { time: '2026-04-01T22:35:12Z', name: 'Liftoff!' },
   { time: '2026-04-01T22:55:12Z', name: 'Orion deploys solar arrays in Earth orbit' },
   { time: '2026-04-01T23:25:02Z', name: 'Perigee raise maneuver (2223 x 185 km)' },
-  { time: '2026-04-02T00:23:09Z', name: 'Apogee raise maneuver  (70377 km)' },
+  { time: '2026-04-02T00:23:09Z', name: 'Apogee raise maneuver (70377 km)' },
   { time: '2026-04-02T01:59:30Z', name: 'Orion/ICPS separation' },
   { time: '2026-04-02T03:25:12Z', name: 'Orion upper stage separation burn' },
   { time: '2026-04-02T03:35:12Z', name: 'ICPS disposal burn for Pacific splashdown ' },
