@@ -9,7 +9,7 @@
 <meta property="og:image" content="https://meithan.net/artemis2/preview.png" />
 <meta property="og:url" content="https://meithan.net/artemis2" />
 <meta property="og:type" content="website" />
-<title>Artemis 2 Visualizer</title>
+<title>Artemis 2 Mission</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.32.0/plotly.min.js"></script>
 
@@ -606,49 +606,20 @@ async function init() {
     // await loadTrajectoryCSV('Moon_corotating_fixed.csv'),
   ]
 
-  // Mission phase milestones -- don't forget to update these if
-  // the schedule changes!
-  const LAUNCH = new Date('2026-04-01T22:35:12Z');
-  const TLI = new Date('2026-04-02T23:49:12Z');
-  const MOON_SOI_ENTRY = new Date('2026-04-06T04:43:12Z');
-  const MOON_SOI_EXIT = new Date('2026-04-07T17:27:12Z');
-  const ENTRY_INT = new Date('2026-04-11T00:04:12Z');
-  const SPLASHDOWN = new Date('2026-04-11T00:17:12Z');
-  const MISSION_END = new Date('2026-04-11T00:32:12Z');
-
-  // Mission events { time: ISO string, name: string }
-  // Sorted by time (the UI will sort them regardless)
-  var MISSION_EVENTS = [
-  { time: '2026-04-01T22:35:12Z', name: 'Liftoff!' },
-  { time: '2026-04-01T22:55:12Z', name: 'Orion deploys solar arrays in Earth orbit' },
-  { time: '2026-04-01T23:25:02Z', name: 'Perigee raise maneuver (2223 x 185 km)' },
-  { time: '2026-04-02T00:23:09Z', name: 'Apogee raise maneuver (70377 km)' },
-  { time: '2026-04-02T01:59:30Z', name: 'Orion/ICPS separation' },
-  { time: '2026-04-02T03:25:12Z', name: 'Orion upper stage separation burn' },
-  { time: '2026-04-02T03:35:12Z', name: 'ICPS disposal burn for Pacific splashdown ' },
-  { time: '2026-04-02T03:39:12Z', name: 'Cubesats deploy at one minute intervals' },
-  { time: '2026-04-02T11:30:12Z', name: 'Perigee raise burn' },
-  { time: '2026-04-02T23:49:12Z', name: 'Start Translunar Injection burn (5m 55s)' },
-  { time: '2026-04-02T23:54:12Z', name: 'End TLI (delta-v= 388 m/s)' },
-  { time: '2026-04-03T00:10:12Z', name: 'Earth shadow entrance ' },
-  { time: '2026-04-03T01:16:12Z', name: 'Earth shadow exit' },
-  { time: '2026-04-03T22:43:12Z', name: 'Orbit trajectory correction burn #1' },
-  { time: '2026-04-04T23:43:12Z', name: 'Orbit trajectory correction burn #2' },
-  { time: '2026-04-06T03:04:12Z', name: 'Orbit trajectory correction burn #3' },
-  { time: '2026-04-06T04:43:12Z', name: 'Orion enters lunar sphere of influence' },
-  { time: '2026-04-06T23:06:12Z', name: 'Closest approach to the Moon	' },
-  { time: '2026-04-06T23:09:12Z', name: 'Maximum distance from Earth' },
-  { time: '2026-04-07T17:27:12Z', name: 'Orion exits lunar sphere of influence' },
-  { time: '2026-04-08T00:04:12Z', name: 'Return trajectory correction burn #1' },
-  { time: '2026-04-09T02:55:12Z', name: 'Manual piloting demonstration' },
-  { time: '2026-04-10T03:04:12Z', name: 'Return trajectory correction burn #2' },
-  { time: '2026-04-10T19:04:12Z', name: 'Return trajectory correction burn #3' },
-  { time: '2026-04-10T23:44:12Z', name: 'Orion crew and service module separation' },
-  { time: '2026-04-10T23:47:12Z', name: 'Crew module raise burn' },
-  { time: '2026-04-11T00:04:12Z', name: 'Entry interface (122 km above Earth)' },
-  { time: '2026-04-11T00:17:12Z', name: 'Splashdown, Pacific Ocean, off Baja Cali.' },
-  { time: '2026-04-11T00:32:12Z', name: 'Orion final power down' },
-  ];
+  // Load and parse events from JSON file
+  const _response = await fetch('events.json');
+  const events_json = await _response.json();
+  const milestones = Object.fromEntries(
+    Object.entries(events_json.milestones).map(([name, isostr]) => {
+      date = new Date(isostr);
+      return [name, {"time": date.getTime(), "Date": date, "isostr": isostr}];
+    })
+  );
+  _events = events_json.events.map(ev => {
+    date = new Date(ev.isostr);
+    return {"time": date.getTime(), "Date": date, "isostr": ev.isostr, "name": ev.name}
+  })
+  const events = _events.sort((a, b) => a.time - b.time);
 
   // Animation FPS
   const FPS = 10;
@@ -663,13 +634,14 @@ async function init() {
   const times = dataS.t;
   const N = times.length;
 
-  const tLaunch = LAUNCH.getTime();
-  const tTLI = TLI.getTime();
-  const tSOIEntry = MOON_SOI_ENTRY.getTime();
-  const tSOIExit = MOON_SOI_EXIT.getTime();
-  const tSplashdown = SPLASHDOWN.getTime();
-  const tEntry = ENTRY_INT.getTime();
-  const tEnd = MISSION_END.getTime();
+  const tLaunch = milestones["LAUNCH"].time;
+  // const tLaunch = milestones['LAUNCH'].getTime();
+  // const tTLI =  milestones['TLI'].getTime();
+  // const tSOIEntry =  milestones['MOON_SOI_ENTRY'].getTime();
+  // const tSOIExit =  milestones['MOON_SOI_EXIT'].getTime();
+  // const tSplashdown =  milestones['SPLASHDOWN'].getTime();
+  // const tEntry =  milestones['ENTRY_INT'].getTime();
+  const tEnd = milestones['MISSION_END'].time;
   const tDataStart = times[0].getTime();
   const tDataEnd = times[N-1].getTime();
 
@@ -679,10 +651,6 @@ async function init() {
   const frameInterval = 1000 / FPS;
   var lastFrame = 0;
   var layout;
-
-  // Sort events
-  const events = [...MISSION_EVENTS].sort((a, b) => new Date(a.time) - new Date(b.time));
-
 
   // ===============================================================
   // Build Plotly scene
@@ -1099,11 +1067,12 @@ async function init() {
 
     // Mission Phase
     const phase = time < tLaunch ? 'Pre-launch'
-      : time < tTLI ? 'Earh orbit'
-      : time < tSOIEntry ? 'Trans-lunar coast'
-      : time < tSOIExit ? 'Lunar flyby'
-      : time < tEntry ? 'Earth return coast'
-      : 'Entry & landing';
+      : time < milestones["TLI"].time ? 'Earh orbit'
+      : time < milestones["MOON_SOI_ENTRY"].time ? 'Trans-lunar coast'
+      : time < milestones["MOON_SOI_EXIT"].time ? 'Lunar space'
+      : time < milestones["ENTRY_INT"].time ? 'Earth return coast'
+      : time < milestones["MISSION_END"].time ? 'Entry & landing'
+      : 'Mission ended';
     document.getElementById('telem-phase').textContent = phase;
 
     // Mission clock

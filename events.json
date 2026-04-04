@@ -1,0 +1,131 @@
+{
+  "source": "JPL Horizons",
+  "rev_date": "2026-04-04 06:47",
+  "milestones": {
+    "LAUNCH": "2026-04-01T22:35Z",
+    "TLI": "2026-04-02T23:54Z",
+    "MOON_SOI_ENTRY": "2026-04-06T04:43Z",
+    "MOON_SOI_EXIT": "2026-04-07T17:27Z",
+    "ENTRY_INT": "2026-04-11T00:04Z",
+    "SPLASHDOWN": "2026-04-11T00:17Z",
+    "MISSION_END": "2026-04-11T00:32Z"
+  },
+  "events": [
+    {
+      "isostr": "2026-04-01T22:35:12Z",
+      "name": "Launch April 1, 22:35:12 UTC"
+    },
+    {
+      "isostr": "2026-04-01T22:55:12Z",
+      "name": "Orion deploys solar arrays in Earth orbit"
+    },
+    {
+      "isostr": "2026-04-01T23:25:02Z",
+      "name": "Perigee raise maneuver (2223 x 185 km)"
+    },
+    {
+      "isostr": "2026-04-02T00:23:09Z",
+      "name": "Apogee raise maneuver  (70377 km)"
+    },
+    {
+      "isostr": "2026-04-02T01:59:30Z",
+      "name": "Orion/ICPS separation"
+    },
+    {
+      "isostr": "2026-04-02T03:25:12Z",
+      "name": "Orion upper stage separation burn"
+    },
+    {
+      "isostr": "2026-04-02T03:35:12Z",
+      "name": "ICPS disposal burn for Pacific splashdown"
+    },
+    {
+      "isostr": "2026-04-02T03:39:12Z",
+      "name": "Cubesats deploy at one minute intervals"
+    },
+    {
+      "isostr": "2026-04-02T11:30:12Z",
+      "name": "Perigee raise burn"
+    },
+    {
+      "isostr": "2026-04-02T23:49:12Z",
+      "name": "Start Translunar Injection burn (5m 55s)"
+    },
+    {
+      "isostr": "2026-04-02T23:54:12Z",
+      "name": "End TLI (delta-v= 388 m/s)"
+    },
+    {
+      "isostr": "2026-04-03T00:10:12Z",
+      "name": "Earth shadow entrance"
+    },
+    {
+      "isostr": "2026-04-03T01:16:12Z",
+      "name": "Earth shadow exit"
+    },
+    {
+      "isostr": "2026-04-03T22:43:12Z",
+      "name": "[CANCELLED] Trajectory correction burn #1"
+    },
+    {
+      "isostr": "2026-04-04T23:43:12Z",
+      "name": "Trajectory correction burn #2"
+    },
+    {
+      "isostr": "2026-04-06T03:04:12Z",
+      "name": "Trajectory correction burn #3"
+    },
+    {
+      "isostr": "2026-04-06T04:43:12Z",
+      "name": "Orion enters lunar sphere of influence"
+    },
+    {
+      "isostr": "2026-04-06T23:06:12Z",
+      "name": "Closest approach to the Moon"
+    },
+    {
+      "isostr": "2026-04-06T23:09:12Z",
+      "name": "Maximum distance from Earth"
+    },
+    {
+      "isostr": "2026-04-07T17:27:12Z",
+      "name": "Orion exits lunar sphere of influence"
+    },
+    {
+      "isostr": "2026-04-08T00:04:12Z",
+      "name": "Return trajectory correction burn #1"
+    },
+    {
+      "isostr": "2026-04-09T02:55:12Z",
+      "name": "Manual piloting demonstration"
+    },
+    {
+      "isostr": "2026-04-10T03:04:12Z",
+      "name": "Return trajectory correction burn #2"
+    },
+    {
+      "isostr": "2026-04-10T19:04:12Z",
+      "name": "Return trajectory correction burn #3"
+    },
+    {
+      "isostr": "2026-04-10T23:44:12Z",
+      "name": "Orion crew and service module separation"
+    },
+    {
+      "isostr": "2026-04-10T23:47:12Z",
+      "name": "Crew module raise burn"
+    },
+    {
+      "isostr": "2026-04-11T00:04:12Z",
+      "name": "Entry interface (122 km above Earth)"
+    },
+    {
+      "isostr": "2026-04-11T00:17:12Z",
+      "name": "Splashdown, Pacific Ocean, off Baja Cali."
+    },
+    {
+      "isostr": "2026-04-11T00:32:12Z",
+      "name": "Orion final power down"
+    }
+  ]
+}
