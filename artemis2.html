@@ -419,6 +419,10 @@
     transform: translateX(15px);
   }
 
+  #notes-div {
+    font-size: 14px;
+  }
+
 </style>
 </head>
 <body>
@@ -482,7 +486,7 @@
     </div>
 
     <div id="notes-block">
-      <div id="notes-div">Data from JPL Horizons<br>By meithan • cc-by-sa</div>
+      <div id="notes-div">Data from JPL Horizons • By meithan cc-by-sa</div>
     </div>
 
   </aside>
@@ -961,6 +965,7 @@ async function init() {
   const frameSel  = document.getElementById('frame-select');
   const cdDisplay = document.getElementById('countdown-display');
   const clockDsp  = document.getElementById('clock-display');
+  const notesDiv  = document.getElementById('notes-div');
 
   let curTime = Date.now();
   let playing = false;
@@ -1166,6 +1171,8 @@ async function init() {
   const canvas = document.querySelector('#plot canvas');
   canvas.addEventListener('mousedown', () => isDragging = true);
   window.addEventListener('mouseup', () => isDragging = false);
+
+  notesDiv.innerHTML = `Data from ${events_json.source} (${events_json.rev_date}) • By meithan cc-by-sa`;
 
   function getLiveCamera() {
     try {
