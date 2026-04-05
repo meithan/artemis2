@@ -128,8 +128,10 @@ async function init() {
   const tDataStart = times[0].getTime();
   const tDataEnd = times[N-1].getTime();
 
+  // Constants, in km
   const EARTH_R = 6371;
   const MOON_R = 1737;
+  const MOON_SOI_R = 64300;
 
   const frameInterval = 1000 / FPS;
   var lastFrame = 0;
@@ -164,15 +166,16 @@ async function init() {
   }
 
   // Create mesh spheres for the Earth and Moon
-  var es = genSphereSurface(0, 0, 0, EARTH_R, 16);
-  var ms0 = genSphereSurface(0, 0, 0, MOON_R, 8);
+  var es = genSphereSurface(0, 0, 0, EARTH_R, 32);
+  var ms0 = genSphereSurface(0, 0, 0, MOON_R, 16);
+  var mSOI = genSphereSurface(0, 0, 0, MOON_SOI_R, 32)
 
   function createPlot() {
 
   // Earth
   const EarthSphere = {
     type: 'surface', ...es,
-    colorscale: [[0, '#0e3d5c'], [0.5, '#1a6fa8'], [1, '#2a9fd6']],
+    colorscale: [[0, '#1a6fa8'], [1, '#1a6fa8']],
     showscale: false, opacity: 1.0,
     hoverinfo: 'skip', showlegend: false, name: 'Earth',
     contours: { x: { highlight: false }, y: { highlight: false }, z: { highlight: false } }
@@ -182,7 +185,7 @@ async function init() {
   const MoonSphere = {
     ...ms0,
     type: 'surface',
-    colorscale: [[0, '#555'], [1, '#9ca3af']],
+    colorscale: [[0, '#9ca3af'], [1, '#9ca3af']],
     showscale: false, opacity: 1.0,
     hoverinfo: 'skip', showlegend: false, name: 'Moon',
     contours: { x: { highlight: false }, y: { highlight: false }, z: { highlight: false } }
@@ -196,7 +199,17 @@ async function init() {
     name: 'Moon\'s orbit',
     showlegend: false,
     hoverinfo: 'skip'
-  };  
+  };
+
+  // Moon's SOI
+  const MoonSOISphere = {
+    ...mSOI,
+    type: 'surface',
+    colorscale: [[0, '#555'], [1, '#555']],
+    showscale: false, opacity: 0.1,
+    hoverinfo: 'skip', showlegend: false, name: "Moon's SOI",
+    contours: { x: { highlight: false }, y: { highlight: false }, z: { highlight: false } }
+  };
 
   // Full trajectory
   const fullTrail = {
@@ -305,7 +318,7 @@ async function init() {
   //const allCooMoonOrbitrds = [...dataS.x, ...dataS.y, ...dataS.z ALSO ADD MOON coords];
   // const maxExtent = Math.max(...allCoords.map(Math.abs));
   // Manual extent
-  maxExtent = 420e3;
+  maxExtent = 470e3;
   var axisRange = [-maxExtent, maxExtent];
 
   // Global layout
@@ -344,6 +357,7 @@ async function init() {
     EarthLabel,
     MoonLabel,
     MoonOrbit,
+    MoonSOISphere,
     eventsTrace
   ];
 
@@ -455,19 +469,25 @@ async function init() {
     // Mission Elapsed Time; can be negative
     MET = time - tLaunch;
 
-    // Moon position (and label)
+    // Moon position, label and SOI
     posvelM = interpPosVelAtTime(dataM, time);
     if (posvelM) {
-      ms = offsetSphere(ms0, posvelM.x, posvelM.y, posvelM.z);
+      _ms = offsetSphere(ms0, posvelM.x, posvelM.y, posvelM.z);
+      _mSOI = offsetSphere(mSOI, posvelM.x, posvelM.y, posvelM.z);
       // Mesh sphere
       // fig.data[1] = {
       //   ...fig.data[1],
       //   x: ms.x, y: ms.y, z: ms.z,
       //   visible: true
       // }
-      fig.data[1].x = ms.x.map(row => [...row]);
-      fig.data[1].y = ms.y.map(row => [...row]);
-      fig.data[1].z = ms.z.map(row => [...row]);
+      // Moon
+      fig.data[1].x = _ms.x.map(row => [...row]);
+      fig.data[1].y = _ms.y.map(row => [...row]);
+      fig.data[1].z = _ms.z.map(row => [...row]);
+      // SOI
+      fig.data[8].x = _mSOI.x.map(row => [...row]);
+      fig.data[8].y = _mSOI.y.map(row => [...row]);
+      fig.data[8].z = _mSOI.z.map(row => [...row]);
       // Label
       fig.data[6].x = [posvelM.x];
       fig.data[6].y = [posvelM.y];
