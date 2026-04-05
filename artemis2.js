@@ -148,9 +148,9 @@ async function init() {
       const theta = (i / steps) * Math.PI;
       for (let j = 0; j <= steps; j++) {
         const phi = (j / steps) * 2 * Math.PI;
-        row_x.push(cx + r * Math.sin(theta) * Math.cos(phi));
+        row_z.push(cx + r * Math.sin(theta) * Math.cos(phi));
         row_y.push(cy + r * Math.sin(theta) * Math.sin(phi));
-        row_z.push(cz + r * Math.cos(theta));
+        row_x.push(cz + r * Math.cos(theta));
       }
       x.push(row_x); y.push(row_y); z.push(row_z);
     }
