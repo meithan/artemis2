@@ -5,11 +5,19 @@
 // Constants, in km
 const EARTH_R = 6371;
 const MOON_R = 1737;
-const MOON_SOI_R = 64300;
+const MOON_SOI_R = 66000;
+
+const data_files = {
+  "FRAME_ECI": ['data/Artemis2_geocentric.csv', 'data/Moon_geocentric.csv'],
+  "FRAME_MOON_PLANE": ['data/Artemis2_orbit_plane.csv', 'data/Moon_orbit_plane.csv'],
+  "FRAME_COROT_MEAN": ['data/Artemis2_corotating_mean.csv', 'data/Moon_corotating_mean.csv'],
+  "FRAME_COROT_INST": ['data/Artemis2_corotating_inst.csv', 'data/Moon_corotating_inst.csv']
+}
 
 // Animation
 const FPS = 10;
 const frameInterval = 1000 / FPS;
+const defaultFrame = "FRAME_ECI";
 var lastFrame = 0;
 var playing = false;
 var live = false;
@@ -20,6 +28,7 @@ var isDragging;
 var fig, layout, canvas;
 
 // Trajectory data
+var all_dataS = {}, all_dataM = {};
 var dataS, dataM;
 
 // Other globals
@@ -95,10 +104,21 @@ function interpPosVelAtTime(data, time)  {
 }
 
 // ================================================================
+// DATA LOADING
+// ================================================================
+
+// Wrapper to load both data files
+async function loadData(refFrame) {
+  [fnameS, fnameM] = data_files[refFrame];
+  all_dataS[refFrame] = await loadTrajectoryCSV(fnameS);
+  console.log("Loaded", fnameS);
+  all_dataM[refFrame] = await loadTrajectoryCSV(fnameM);
+  console.log("Loaded", fnameM);
+}
+
 // Load and parse trajectory data in CSV with the following fields:
 // yyy-mm-ddThh:mm:ssZ,x,y,z,vx,v,yz
 // Positions in km, speeds in km/s
-// ================================================================
 async function loadTrajectoryCSV(url) {
   const resp = await fetch(url);
   const text = await resp.text();
@@ -198,7 +218,7 @@ function createPlot() {
 
   // Moon's SOI
   const MoonSOISphere = {
-    ...mSOI,
+    ...mSOI0,
     type: 'surface',
     colorscale: [[0, '#555'], [1, '#555']],
     showscale: false, opacity: 0.1,
@@ -464,7 +484,7 @@ function updateMain(time) {
   var posvelM = interpPosVelAtTime(dataM, time);
   if (posvelM) {
     _ms = offsetSphere(ms0, posvelM.x, posvelM.y, posvelM.z);
-    _mSOI = offsetSphere(mSOI, posvelM.x, posvelM.y, posvelM.z);
+    _mSOI = offsetSphere(mSOI0, posvelM.x, posvelM.y, posvelM.z);
     // Mesh sphere
     // fig.data[1] = {
     //   ...fig.data[1],
@@ -628,9 +648,16 @@ function updateFromScrubber() {
   updateMain(curTime);
 }
 
-function setCoordFrame(idx) {
-  dataS = all_dataS[idx];
-  dataM = all_dataM[idx];
+async function setRefFrame(refFrame) {
+  if (!(refFrame in all_dataS) || !(refFrame in all_dataM)) {
+    await loadData(refFrame);
+  }
+  dataS = all_dataS[refFrame];
+  dataM = all_dataM[refFrame];
+  times = dataS.t;
+  N = times.length;
+  tDataStart = times[0].getTime();
+  tDataEnd = times[N-1].getTime();
   createPlot();
   updateMain(curTime);
 }
@@ -642,27 +669,6 @@ function setCoordFrame(idx) {
 async function init() {
 
   fig = document.getElementById('plot');
-
-  // DATA LOADING
-
-  // Load Spacecraft and Moon trajectory data in multiple frames
-  // format: { time: ISO string, x, y, z in meters, vx, vy, vz in m/s}
-  // const dataS = await loadTrajectoryCSV('Artemis2_geocentric.csv');
-  // const dataM = await loadTrajectoryCSV('Moon_geocentric.csv');
-  all_dataS = [
-    await loadTrajectoryCSV('data/Artemis2_geocentric.csv'),
-    await loadTrajectoryCSV('data/Artemis2_orbit_plane.csv'),
-    await loadTrajectoryCSV('data/Artemis2_corotating_mean.csv'),
-    await loadTrajectoryCSV('data/Artemis2_corotating_inst.csv'),
-    // await loadTrajectoryCSV('Artemis2_corotating_fixed.csv'),
-  ]
-  all_dataM = [
-    await loadTrajectoryCSV('data/Moon_geocentric.csv'),
-    await loadTrajectoryCSV('data/Moon_orbit_plane.csv'),
-    await loadTrajectoryCSV('data/Moon_corotating_mean.csv'),
-    await loadTrajectoryCSV('data/Moon_corotating_inst.csv'),
-    // await loadTrajectoryCSV('Moon_corotating_fixed.csv'),
-  ]
 
   // Load and parse events from JSON file
   const _response = await fetch('events.json');
@@ -678,21 +684,13 @@ async function init() {
     return {"time": date.getTime(), "Date": date, "isostr": ev.isostr, "name": ev.name}
   })
   events = _events.sort((a, b) => a.time - b.time);
-
-  // Parse stuff -- distances in km, speeds in km/s
-  dataS = all_dataS[1];
-  dataM = all_dataM[1];
-  times = dataS.t;
-  N = times.length;
   tLaunch = milestones["LAUNCH"].time;
   tEnd = milestones['MISSION_END'].time;
-  tDataStart = times[0].getTime();
-  tDataEnd = times[N-1].getTime();
 
   // Create mesh spheres for the Earth and Moon
   es = genSphereSurface(0, 0, 0, EARTH_R, 32);
   ms0 = genSphereSurface(0, 0, 0, MOON_R, 16);
-  mSOI = genSphereSurface(0, 0, 0, MOON_SOI_R, 32)
+  mSOI0 = genSphereSurface(0, 0, 0, MOON_SOI_R, 32)
 
   // Init UI elements
   eventsList = document.getElementById('events-list');
@@ -705,14 +703,11 @@ async function init() {
   clockDsp  = document.getElementById('clock-display');
   notesDiv  = document.getElementById('notes-div');
 
-  // Create Plotly.js plot
-  createPlot();
-
-  // Frame control listeners
+  // Frame control listener
   frameSel.addEventListener('change', (event) => {
     value = event.target.value;
     console.log('Selected frame:', value);
-    setCoordFrame(parseInt(value));
+    setRefFrame(value);
   });
 
   // Time controls listeners
@@ -720,18 +715,20 @@ async function init() {
   btnRt.addEventListener('click', jumpToNow);
   scrubber.addEventListener('input', updateFromScrubber);
 
+  notesDiv.innerHTML = `Data from ${events_json.source} (${events_json.rev_date}) • By meithan cc-by-sa`;
+
+  // Load default state
+  curTime = Date.now();
+  await setRefFrame(defaultFrame);
+  createPlot();
+  updateMain(curTime);
+  startPlay();
+
   // View dragging workaround 
   isDragging = false;
   canvas = document.querySelector('#plot canvas');
   canvas.addEventListener('mousedown', () => isDragging = true);
   window.addEventListener('mouseup', () => isDragging = false);
-
-  notesDiv.innerHTML = `Data from ${events_json.source} (${events_json.rev_date}) • By meithan cc-by-sa`;
-
-  // On load, set state to LIVE
-  curTime = Date.now();
-  updateMain(Date.now());
-  startPlay();
 
 }
 
