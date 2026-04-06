@@ -35,7 +35,7 @@ var dataS, dataM;
 var events, milestones, times, N, tLaunch, tEnd, tDataStart, tDataEnd, curTime, MET;
 
 // UI DOM elements
-var eventsList, scrubber, btnPlay, btnRt, speedSel, frameSel, cdDisplay, clockDsp, notesDiv
+var eventsList, scrubber, btnPlay, btnLive, speedSel, frameSel, cdDisplay, clockDsp, notesDiv
 
 // ===============================================================
 // UTILITY FUNCTIONS
@@ -630,15 +630,19 @@ function startPlay() {
 
 function stopPlay() {
   playing = false;
+  live = false;
   btnPlay.textContent = '▶ PLAY';
   btnPlay.classList.remove('active');
+  btnLive.classList.remove('active');
   if (rafId) cancelAnimationFrame(rafId);
 }
 
-function jumpToNow() {
+function goLive() {
+  live = true;
+  btnLive.classList.add('active');
   curTime = Date.now();
   updateMain(curTime);
-  startPlay();    
+  startPlay();
 }
 
 function updateFromScrubber() {
@@ -696,7 +700,7 @@ async function init() {
   eventsList = document.getElementById('events-list');
   scrubber  = document.getElementById('scrubber');
   btnPlay   = document.getElementById('btn-play');
-  btnRt     = document.getElementById('btn-rt');
+  btnLive     = document.getElementById('btn-live');
   speedSel  = document.getElementById('speed-select');
   frameSel  = document.getElementById('frame-select');
   cdDisplay = document.getElementById('countdown-display');
@@ -712,7 +716,7 @@ async function init() {
 
   // Time controls listeners
   btnPlay.addEventListener('click', () => { playing ? stopPlay() : startPlay(); });
-  btnRt.addEventListener('click', jumpToNow);
+  btnLive.addEventListener('click', goLive);
   scrubber.addEventListener('input', updateFromScrubber);
 
   notesDiv.innerHTML = `Data from ${events_json.source} (${events_json.rev_date}) • By meithan cc-by-sa`;
@@ -722,7 +726,7 @@ async function init() {
   await setRefFrame(defaultFrame);
   createPlot();
   updateMain(curTime);
-  startPlay();
+  goLive();
 
   // View dragging workaround 
   isDragging = false;
