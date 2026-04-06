@@ -440,8 +440,8 @@ function renderEvents(time) {
     const evTime = new Date(ev.time).getTime();
     const timeToEv = evTime - time;
     const isNext   = i === nextIdx;
-    const isActive = Math.abs(timeToEv) < 10*60*1000;
-    const isPast   = timeToEv < 0 && !isActive;
+    const isActive = (timeToEv > 0) && (timeToEv < 10*60*1000);
+    const isPast   = timeToEv < 0;
 
     const item = document.createElement('div');
     item.className = 'event-item' + (isPast ? ' past' : '') + (isActive ? ' active' : '');
