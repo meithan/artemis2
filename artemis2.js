@@ -11,18 +11,21 @@ const data_files = {
   "FRAME_ECI": ['data/Artemis2_geocentric.csv', 'data/Moon_geocentric.csv'],
   "FRAME_MOON_PLANE": ['data/Artemis2_orbit_plane.csv', 'data/Moon_orbit_plane.csv'],
   "FRAME_COROT_MEAN": ['data/Artemis2_corotating_mean.csv', 'data/Moon_corotating_mean.csv'],
-  "FRAME_COROT_INST": ['data/Artemis2_corotating_inst.csv', 'data/Moon_corotating_inst.csv']
+  "FRAME_COROT_INST": ['data/Artemis2_corotating_inst.csv', 'data/Moon_corotating_inst.csv'],
+  "FRAME_FLYBY": ['data/Artemis2_flyby.csv', null]
 }
 
 // Animation
 const FPS = 10;
 const frameInterval = 1000 / FPS;
-const defaultFrame = "FRAME_ECI";
+// const defaultFrame = "FRAME_ECI";
+const defaultFrame = "FRAME_FLYBY";
 var lastFrame = 0;
 var playing = false;
 var live = false;
 var rafId;
 var isDragging;
+var refFrame;
 
 // Plotly
 var fig, layout, canvas;
@@ -112,8 +115,10 @@ async function loadData(refFrame) {
   [fnameS, fnameM] = data_files[refFrame];
   all_dataS[refFrame] = await loadTrajectoryCSV(fnameS);
   console.log("Loaded", fnameS);
-  all_dataM[refFrame] = await loadTrajectoryCSV(fnameM);
-  console.log("Loaded", fnameM);
+  if (refFrame != "FRAME_FLYBY") {
+    all_dataM[refFrame] = await loadTrajectoryCSV(fnameM);
+    console.log("Loaded", fnameM);
+  }
 }
 
 // Load and parse trajectory data in CSV with the following fields:
@@ -350,11 +355,16 @@ function createPlot() {
       yaxis: { ...axisStyle, title: { text: 'Y (km)', ...axisStyle.title }, range: axisRange, visible: false },
       zaxis: { ...axisStyle, title: { text: 'Z (km)', ...axisStyle.title }, range: axisRange, visible: false },
       aspectmode: 'cube',
+      // camera: {
+      //   eye: {x: -0.077, y: -0.23, z: 0.5},
+      //   up: {x: 1, y: -0.35, z: 0},
+      //   center: {x: -0.077, y: -0.23, z: 0}
+      // },
       camera: {
-        eye: {x: -0.077, y: -0.23, z: 0.5},
-        up: {x: 1, y: -0.35, z: 0},
-        center: {x: -0.077, y: -0.23, z: 0}
-      },
+        eye: {x: 0, y: 0, z: 0.25},
+        up: {x: 0, y: 0, z: 1},
+        center: {x: 0, y: 0, z: 0}
+      },      
     },
     legend: {
       font: { color: 'rgba(200,230,234,0.5)', size: 14, family: 'Share Tech Mono' },
@@ -363,18 +373,25 @@ function createPlot() {
     }
   };
 
-  traces = [
-    EarthSphere,
-    MoonSphere,
-    fullTrail,
-    pastTrail,
-    scMarker,
-    EarthLabel,
-    MoonLabel,
-    MoonOrbit,
-    MoonSOISphere,
-    eventsTrace
+  to_show = [
+    [EarthSphere, "Earth"],
+    [MoonSphere, "Moon"],
+    [fullTrail, "fullTrail"],
+    [pastTrail, "pastTrail"],
+    [scMarker, "craft"],
+    [EarthLabel, "EarthLabel"],
+    [MoonLabel, "MoonLabel"],
+    [MoonOrbit, "MoonOrbit"],
+    [MoonSOISphere, "MoonSOI"],
+    [eventsTrace, "events"]
   ];
+
+  traces = [];
+  traceIdx = {};
+  for (var i = 0; i < to_show.length; i++) {
+    traces.push(to_show[i][0]);
+    traceIdx[to_show[i][1]] = i;
+  }
 
   Plotly.newPlot('plot',
     traces,
@@ -492,17 +509,25 @@ function updateMain(time) {
     //   visible: true
     // }
     // Moon
-    fig.data[1].x = _ms.x.map(row => [...row]);
-    fig.data[1].y = _ms.y.map(row => [...row]);
-    fig.data[1].z = _ms.z.map(row => [...row]);
+    fig.data[traceIdx["Moon"]].x = _ms.x.map(row => [...row]);
+    fig.data[traceIdx["Moon"]].y = _ms.y.map(row => [...row]);
+    fig.data[traceIdx["Moon"]].z = _ms.z.map(row => [...row]);
     // SOI
-    fig.data[8].x = _mSOI.x.map(row => [...row]);
-    fig.data[8].y = _mSOI.y.map(row => [...row]);
-    fig.data[8].z = _mSOI.z.map(row => [...row]);
+    fig.data[traceIdx["MoonSOI"]].x = _mSOI.x.map(row => [...row]);
+    fig.data[traceIdx["MoonSOI"]].y = _mSOI.y.map(row => [...row]);
+    fig.data[traceIdx["MoonSOI"]].z = _mSOI.z.map(row => [...row]);
     // Label
-    fig.data[6].x = [posvelM.x];
-    fig.data[6].y = [posvelM.y];
-    fig.data[6].z = [posvelM.z+MOON_R*1.5];
+    fig.data[traceIdx["MoonLabel"]].x = [posvelM.x];
+    fig.data[traceIdx["MoonLabel"]].y = [posvelM.y];
+    fig.data[traceIdx["MoonLabel"]].z = [posvelM.z+MOON_R*1.5];
+  }
+
+  if (refFrame == "FRAME_FLYBY") {
+    fig.data[traceIdx["Earth"]].visible = false;
+    fig.data[traceIdx["EarthLabel"]].visible = false;
+  } else {
+    fig.data[traceIdx["Earth"]].visible = true;
+    fig.data[traceIdx["EarthLabel"]].visible = true;
   }
 
   if (MET < 0) {
@@ -511,8 +536,8 @@ function updateMain(time) {
     cdDisplay.className = 'prev';
 
     // Hide spacecraft and elapsed trajectory    
-    fig.data[3].visible = false;
-    fig.data[4].visible = false;
+    fig.data[traceIdx["pastTrail"]].visible = false;
+    fig.data[traceIdx["craft"]].visible = false;
     document.getElementById('telem-alt').textContent = '—';
     document.getElementById('telem-moon').textContent = '—';
     document.getElementById('telem-speed').textContent = '—';
@@ -538,10 +563,10 @@ function updateMain(time) {
       //   z: dataS.z.slice(0, cutIdx + 1),
       //   visible: true,
       // }
-      fig.data[3].x = dataS.x.slice(0, cutIdx + 1);
-      fig.data[3].y = dataS.y.slice(0, cutIdx + 1);
-      fig.data[3].z = dataS.z.slice(0, cutIdx + 1);
-      fig.data[3].visible = true;        
+      fig.data[traceIdx["pastTrail"]].x = dataS.x.slice(0, cutIdx + 1);
+      fig.data[traceIdx["pastTrail"]].y = dataS.y.slice(0, cutIdx + 1);
+      fig.data[traceIdx["pastTrail"]].z = dataS.z.slice(0, cutIdx + 1);
+      fig.data[traceIdx["pastTrail"]].visible = true;        
       
       // Update spacecraft position
       // fig.data[4] = {
@@ -552,10 +577,10 @@ function updateMain(time) {
       //   visible: true,
       // }
       // Spacecraft marker
-      fig.data[4].x = [posvel.x];
-      fig.data[4].y = [posvel.y];
-      fig.data[4].z = [posvel.z];
-      fig.data[4].visible = true;        
+      fig.data[traceIdx["craft"]].x = [posvel.x];
+      fig.data[traceIdx["craft"]].y = [posvel.y];
+      fig.data[traceIdx["craft"]].z = [posvel.z];
+      fig.data[traceIdx["craft"]].visible = true;        
 
       // Sidebar telemetry
       const alt = Math.sqrt(posvel.x**2 + posvel.y**2 + posvel.z**2) - EARTH_R;
@@ -570,8 +595,8 @@ function updateMain(time) {
     } else {
 
       // Hide plotly spacecraft position
-      fig.data[3].visible = false;
-      fig.data[4].visible = false;
+      fig.data[traceIdx["pastTrail"]].visible = false;
+      fig.data[traceIdx["craft"]].visible = false;
       document.getElementById('telem-alt').textContent = '—';
       document.getElementById('telem-moon').textContent = '—';
       document.getElementById('telem-speed').textContent = '—';
@@ -610,9 +635,10 @@ function updateMain(time) {
   renderEvents(time);
 
   // Batch apply all Plotly updates
-  const liveCamera = getLiveCamera();
-  if (liveCamera && !isDragging) layout.scene.camera = liveCamera;
-  if (!isDragging) Plotly.react('plot', fig.data, layout);
+  // const liveCamera = getLiveCamera();
+  // if (liveCamera && !isDragging) layout.scene.camera = liveCamera;
+  // if (!isDragging) Plotly.react('plot', fig.data, layout);
+  Plotly.react('plot', fig.data, layout);
 
 }
 
@@ -652,18 +678,44 @@ function updateFromScrubber() {
   updateMain(curTime);
 }
 
-async function setRefFrame(refFrame) {
+async function setRefFrame(_refFrame) {
+  
+  refFrame = _refFrame;
+
   if (!(refFrame in all_dataS) || !(refFrame in all_dataM)) {
     await loadData(refFrame);
   }
   dataS = all_dataS[refFrame];
-  dataM = all_dataM[refFrame];
   times = dataS.t;
   N = times.length;
+  if (refFrame == "FRAME_FLYBY") {
+    all_dataM[refFrame] = {t: [dataS.t[0], dataS.t[N-1]], x: [0, 0], y: [0, 0], z: [0, 0], vx: [0, 0], vy: [0, 0], vz: [0, 0]}
+  }
+  dataM = all_dataM[refFrame];
   tDataStart = times[0].getTime();
   tDataEnd = times[N-1].getTime();
+  
   createPlot();
+  
+  // Re-set camera on frame change
+  if (refFrame == "FRAME_FLYBY") {
+    camera = {
+      eye: {x: 0, y: 0, z: 0.3},
+      up: {x: 0, y: 0, z: 1},
+      center: {x: 0, y: 0, z: 0}
+    };
+  } else {
+    camera = {
+      eye: {x: -0.077, y: -0.23, z: 0.5},
+      up: {x: 1, y: -0.35, z: 0},
+      center: {x: -0.077, y: -0.23, z: 0}
+    };
+  }
+  layout.scene.camera = camera;
+  Plotly.relayout('plot', {'scene.camera': camera});
+
   updateMain(curTime);
+
 }
 
 // ===============================================================
@@ -673,6 +725,8 @@ async function setRefFrame(refFrame) {
 async function init() {
 
   fig = document.getElementById('plot');
+
+  refFrame = defaultFrame;
 
   // Load and parse events from JSON file
   const _response = await fetch('events.json');
