@@ -407,3 +407,176 @@ select.ctrl-btn { padding: 4px 6px; }
 #notes-div {
   font-size: 14px;
 }
+
+/* ── Mobile toggle button ── */
+#sidebar-toggle {
+  display: none;
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 200;
+  background: rgba(0,10,14,0.92);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 18px;
+  width: 38px;
+  height: 38px;
+  border-radius: 4px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* ── Tablet (≤900px): narrow sidebar ── */
+@media (max-width: 900px) {
+  :root {
+    --sidebar-w: 240px;
+  }
+
+  .section-label {
+    font-size: 13px;
+  }
+
+  .telem-key,
+  .telem-val {
+    font-size: 14px;
+  }
+
+  .event-name {
+    font-size: 14px;
+  }
+
+  #countdown-display {
+    font-size: 22px;
+  }
+
+  .mission-name {
+    font-size: 20px;
+  }
+
+  .ctrl-btn {
+    font-size: 13px;
+    padding: 4px 8px;
+  }
+
+  #speed-label {
+    font-size: 13px;
+  }
+}
+
+/* ── Mobile (≤600px): overlay sidebar, full-screen plot ── */
+@media (max-width: 600px) {
+
+  html, body {
+    overflow: hidden;
+  }
+
+  #app {
+    flex-direction: column;
+  }
+
+  /* Show hamburger toggle */
+  #sidebar-toggle {
+    display: flex;
+  }
+
+  /* Sidebar becomes a fixed overlay panel */
+  #sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(320px, 90vw);
+    height: 100%;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  #sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Dim overlay behind open sidebar */
+  #sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 99;
+  }
+
+  #sidebar-backdrop.open {
+    display: block;
+  }
+
+  /* Main takes full screen */
+  #main {
+    width: 100%;
+    height: 100vh;
+  }
+
+  #plot {
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Controls: wrap on small screens */
+  #controls {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px 10px;
+  }
+
+  #frame-label,
+  #speed-label {
+    font-size: 12px;
+    min-width: unset;
+  }
+
+  .ctrl-btn {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+
+  /* Scrubber spans full width */
+  #scrubber {
+    width: 100%;
+    flex: unset;
+    order: 10;
+  }
+
+  /* Sidebar header needs space for toggle button */
+  #sidebar-header {
+    padding-top: 14px;
+    padding-left: 56px;
+  }
+
+  .mission-name {
+    font-size: 20px;
+  }
+
+  .section-label {
+    font-size: 13px;
+  }
+
+  #countdown-display {
+    font-size: 22px;
+  }
+
+  .telem-key,
+  .telem-val {
+    font-size: 14px;
+  }
+
+  .event-name {
+    font-size: 14px;
+  }
+
+  .event-time {
+    font-size: 12px;
+  }
+}
