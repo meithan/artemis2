@@ -790,4 +790,4 @@ async function init() {
 
 }
 
-init();
+const initPromise = init();

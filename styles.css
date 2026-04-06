@@ -238,7 +238,7 @@ overflow: hidden;
   justify-content: space-between;
 }
 
-/* ── Next event pin ── */
+/*  Next event pin  */
 .event-item.next {
   background: rgba(0,229,255,0.06);
   border-radius: 6px;
@@ -272,10 +272,23 @@ overflow: hidden;
   padding: 14px 20px;
   border-top: 1px solid var(--border);
   color: var(--text-dim);
-  /* border-bottom: 1px solid var(--border); */
 }
 
-/* ── Main area: plot + controls ── */
+#frame-block {
+  display: none; /* hidden on desktop; shown on mobile via media query */
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+#frame-block .ctrl-btn {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+/*  Main area: plot + controls  */
 #main {
   flex: 1;
   display: flex;
@@ -289,7 +302,7 @@ overflow: hidden;
   min-height: 0;
 }
 
-/* ── Controls bar ── */
+/*  Controls bar  */
 #controls {
   display: flex;
   align-items: center;
@@ -408,7 +421,52 @@ select.ctrl-btn { padding: 4px 6px; }
   font-size: 14px;
 }
 
-/* ── Mobile toggle button ── */
+/*  Loading message  */
+#loading-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0,10,14,0.92);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 16px;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+#loading-overlay.done {
+  opacity: 0;
+}
+
+#loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: spin 0.9s linear infinite;
+}
+
+#loading-msg {
+  font-family: var(--mono);
+  font-size: 18px;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+
 #sidebar-toggle {
   display: none;
   position: fixed;
@@ -429,7 +487,7 @@ select.ctrl-btn { padding: 4px 6px; }
   line-height: 1;
 }
 
-/* ── Tablet (≤900px): narrow sidebar ── */
+/*  Tablet (≤900px): narrow sidebar  */
 @media (max-width: 900px) {
   :root {
     --sidebar-w: 240px;
@@ -466,7 +524,7 @@ select.ctrl-btn { padding: 4px 6px; }
   }
 }
 
-/* ── Mobile (≤600px): overlay sidebar, full-screen plot ── */
+/*  Mobile (≤600px): overlay sidebar, full-screen plot  */
 @media (max-width: 600px) {
 
   html, body {
@@ -547,6 +605,17 @@ select.ctrl-btn { padding: 4px 6px; }
     width: 100%;
     flex: unset;
     order: 10;
+  }
+
+  /* Show frame selector in sidebar on mobile */
+  #frame-block {
+    display: block;
+  }
+
+  /* Hide frame select from controls bar on mobile */
+  #frame-label,
+  #frame-select {
+    display: none;
   }
 
   /* Sidebar header needs space for toggle button */
