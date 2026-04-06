@@ -1,4 +1,34 @@
 // ===============================================================
+// MAIN CONFIGURATION AND GLOBALS
+// ===============================================================
+
+// Constants, in km
+const EARTH_R = 6371;
+const MOON_R = 1737;
+const MOON_SOI_R = 64300;
+
+// Animation
+const FPS = 10;
+const frameInterval = 1000 / FPS;
+var lastFrame = 0;
+var playing = false;
+var live = false;
+var rafId;
+var isDragging;
+
+// Plotly
+var fig, layout, canvas;
+
+// Trajectory data
+var dataS, dataM;
+
+// Other globals
+var events, milestones, times, N, tLaunch, tEnd, tDataStart, tDataEnd, curTime, MET;
+
+// UI DOM elements
+var eventsList, scrubber, btnPlay, btnRt, speedSel, frameSel, cdDisplay, clockDsp, notesDiv
+
+// ===============================================================
 // UTILITY FUNCTIONS
 // ===============================================================
 
@@ -6,6 +36,7 @@ const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 const pad = (num) => num.toString().padStart(2, '0');
 
+// Format Mission Elapsed Time
 function fmtElapsed(ms) {
   const s = Math.floor(Math.abs(ms) / 1000);
   const d = Math.floor(s / 86400);
@@ -16,6 +47,7 @@ function fmtElapsed(ms) {
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
 }
 
+// Format a Datetime object nicely
 function fmtNiceTime(time) {
   const useUTC = !document.getElementById('time-format').checked;
   d = new Date(time);
@@ -27,6 +59,7 @@ function fmtNiceTime(time) {
   return s;
 }
 
+// Format a time duration, in milliseconds
 function fmtDuration(ms) {
   const s = Math.floor(Math.abs(ms) / 1000);
   const d = Math.floor(s / 86400);
@@ -41,6 +74,7 @@ function fmtDuration(ms) {
   return result;
 }
 
+// Interpolate position and velocit at given time
 function interpPosVelAtTime(data, time)  {
   const N = data.t.length;
   const t0 = data.t[0].getTime();
@@ -60,117 +94,78 @@ function interpPosVelAtTime(data, time)  {
   };
 }
 
+// ================================================================
+// Load and parse trajectory data in CSV with the following fields:
+// yyy-mm-ddThh:mm:ssZ,x,y,z,vx,v,yz
+// Positions in km, speeds in km/s
+// ================================================================
+async function loadTrajectoryCSV(url) {
+  const resp = await fetch(url);
+  const text = await resp.text();
+  // const lines = text.trim().split('\n').slice(1); // skip header
+  const lines = text.trim().split('\n');
+  t = []; x = []; y = []; z = []; vx = []; vy = []; vz = [];
+  lines.forEach(line => {
+    const [_t, _x, _y, _z, _vx, _vy, _vz] = line.split(',');
+    t.push(new Date(_t));
+    x.push(parseFloat(_x));
+    y.push(parseFloat(_y));
+    z.push(parseFloat(_z));
+    vx.push(parseFloat(_vx));
+    vy.push(parseFloat(_vy));
+    vz.push(parseFloat(_vz));
+  });
+  return {t, x, y, z, vx, vy, vz}
+}
+
+// ===============================================================
+// PLOTLY.JS PLOTTING
 // ===============================================================
 
-async function init() {
-
-  const fig = document.getElementById('plot');
-
-  // ===============================================================
-  // CONFIGURATION
-  // ===============================================================
-
-  // Load Spacecraft and Moon trajectory data in multiple frames
-  // format: { time: ISO string, x, y, z in meters, vx, vy, vz in m/s}
-  // const dataS = await loadTrajectoryCSV('Artemis2_geocentric.csv');
-  // const dataM = await loadTrajectoryCSV('Moon_geocentric.csv');
-  all_dataS = [
-    await loadTrajectoryCSV('data/Artemis2_geocentric.csv'),
-    await loadTrajectoryCSV('data/Artemis2_orbit_plane.csv'),
-    await loadTrajectoryCSV('data/Artemis2_corotating_mean.csv'),
-    await loadTrajectoryCSV('data/Artemis2_corotating_inst.csv'),
-    // await loadTrajectoryCSV('Artemis2_corotating_fixed.csv'),
-  ]
-  all_dataM = [
-    await loadTrajectoryCSV('data/Moon_geocentric.csv'),
-    await loadTrajectoryCSV('data/Moon_orbit_plane.csv'),
-    await loadTrajectoryCSV('data/Moon_corotating_mean.csv'),
-    await loadTrajectoryCSV('data/Moon_corotating_inst.csv'),
-    // await loadTrajectoryCSV('Moon_corotating_fixed.csv'),
-  ]
-
-  // Load and parse events from JSON file
-  const _response = await fetch('events.json');
-  const events_json = await _response.json();
-  const milestones = Object.fromEntries(
-    Object.entries(events_json.milestones).map(([name, isostr]) => {
-      date = new Date(isostr);
-      return [name, {"time": date.getTime(), "Date": date, "isostr": isostr}];
-    })
-  );
-  _events = events_json.events.map(ev => {
-    date = new Date(ev.isostr);
-    return {"time": date.getTime(), "Date": date, "isostr": ev.isostr, "name": ev.name}
-  })
-  const events = _events.sort((a, b) => a.time - b.time);
-
-  // Animation FPS
-  const FPS = 10;
-
-  // ===============================================================
-  // Parse stuff -- distances in km, speeds in km/s
-  // ===============================================================
-
-  var dataS = all_dataS[1];
-  var dataM = all_dataM[1];
-
-  const times = dataS.t;
-  const N = times.length;
-
-  const tLaunch = milestones["LAUNCH"].time;
-  // const tLaunch = milestones['LAUNCH'].getTime();
-  // const tTLI =  milestones['TLI'].getTime();
-  // const tSOIEntry =  milestones['MOON_SOI_ENTRY'].getTime();
-  // const tSOIExit =  milestones['MOON_SOI_EXIT'].getTime();
-  // const tSplashdown =  milestones['SPLASHDOWN'].getTime();
-  // const tEntry =  milestones['ENTRY_INT'].getTime();
-  const tEnd = milestones['MISSION_END'].time;
-  const tDataStart = times[0].getTime();
-  const tDataEnd = times[N-1].getTime();
-
-  // Constants, in km
-  const EARTH_R = 6371;
-  const MOON_R = 1737;
-  const MOON_SOI_R = 64300;
-
-  const frameInterval = 1000 / FPS;
-  var lastFrame = 0;
-  var layout;
-
-  // ===============================================================
-  // Build Plotly scene
-  // ===============================================================
-
-  function genSphereSurface(cx, cy, cz, r, steps) {
-    const x = [], y = [], z = [];
-    for (let i = 0; i <= steps; i++) {
-      const row_x = [], row_y = [], row_z = [];
-      const theta = (i / steps) * Math.PI;
-      for (let j = 0; j <= steps; j++) {
-        const phi = (j / steps) * 2 * Math.PI;
-        row_z.push(cx + r * Math.sin(theta) * Math.cos(phi));
-        row_y.push(cy + r * Math.sin(theta) * Math.sin(phi));
-        row_x.push(cz + r * Math.cos(theta));
-      }
-      x.push(row_x); y.push(row_y); z.push(row_z);
+// Generate a mesh sphere given center, radius and steps
+function genSphereSurface(cx, cy, cz, r, steps) {
+  const x = [], y = [], z = [];
+  for (let i = 0; i <= steps; i++) {
+    const row_x = [], row_y = [], row_z = [];
+    const theta = (i / steps) * Math.PI;
+    for (let j = 0; j <= steps; j++) {
+      const phi = (j / steps) * 2 * Math.PI;
+      row_z.push(cx + r * Math.sin(theta) * Math.cos(phi));
+      row_y.push(cy + r * Math.sin(theta) * Math.sin(phi));
+      row_x.push(cz + r * Math.cos(theta));
     }
-    return { x, y, z };
+    x.push(row_x); y.push(row_y); z.push(row_z);
   }
+  return { x, y, z };
+}
 
-  function offsetSphere(sph, xoff, yoff, zoff) {
-    return {
-      x: sph.x.map(row => row.map(v => v + xoff)),
-      y: sph.y.map(row => row.map(v => v + yoff)),
-      z: sph.z.map(row => row.map(v => v + zoff)),
+// Offsets the center of a sphere
+function offsetSphere(sph, xoff, yoff, zoff) {
+  return {
+    x: sph.x.map(row => row.map(v => v + xoff)),
+    y: sph.y.map(row => row.map(v => v + yoff)),
+    z: sph.z.map(row => row.map(v => v + zoff)),
+  };
+}
+
+function getLiveCamera() {
+  try {
+    const glCam = fig._fullLayout.scene._scene.glplot.camera;
+    const cam = {
+      eye:    { x: glCam.eye[0],    y: glCam.eye[1],    z: glCam.eye[2]    },
+      center: { x: glCam.center[0], y: glCam.center[1], z: glCam.center[2] },
+      up:     { x: glCam.up[0],     y: glCam.up[1],     z: glCam.up[2]     }
     };
+    // console.log('isDragging:', isDragging, 'eye:', JSON.stringify(cam.eye));
+    return cam;
+  } catch(e) {
+    console.log('getLiveCamera failed:', e);
+    return null;
   }
+}
 
-  // Create mesh spheres for the Earth and Moon
-  var es = genSphereSurface(0, 0, 0, EARTH_R, 32);
-  var ms0 = genSphereSurface(0, 0, 0, MOON_R, 16);
-  var mSOI = genSphereSurface(0, 0, 0, MOON_SOI_R, 32)
-
-  function createPlot() {
+// Main function to create the plot
+function createPlot() {
 
   // Earth
   const EarthSphere = {
@@ -367,291 +362,351 @@ async function init() {
     { responsive: true, displayModeBar: true }
   );
 
+}
+
+// ===============================================================
+// EVENTS LIST
+// ===============================================================
+
+function renderNextEvent(time) {
+
+  const pin = document.getElementById('next-event-pin');
+  const nextIdx = events.findIndex(ev => (new Date(ev.time).getTime() - time) > 0);
+  if (nextIdx === -1) {
+    pin.innerHTML = `<div class="event-name" style="color:var(--text-dim);font-size:16px">Mission complete</div>`;
+    return;
   }
+  const next = events[nextIdx];
+  const evTime = new Date(next.time).getTime();
+  const timeToEv = evTime - time;    
+  pin.innerHTML = `
+    <div class="event-item next" style="border-bottom:none;margin:0;padding:0">
+      <div class="event-dot"></div>
+      <div class="event-body">
+        <div class="event-name">${next.name}</div>
+        <div class="event-time">
+          <span>T-${fmtDuration(timeToEv)}</span>
+          <span>${fmtNiceTime(evTime)}</span>
+        </div>          
+      </div>
+    </div>`;
+}
 
-  createPlot();
+function renderEvents(time) {
+  
+  eventsList.innerHTML = '';
 
-  // ===============================================================
-  // Events list
-  // ===============================================================
+  // Next Event
+  const nextIdx = events.findIndex(ev => (new Date(ev.time).getTime() - time) > 0);
 
-  const eventsList = document.getElementById('events-list');
+  events.forEach((ev, i) => {
+    const evTime = new Date(ev.time).getTime();
+    const timeToEv = evTime - time;
+    const isNext   = i === nextIdx;
+    const isActive = Math.abs(timeToEv) < 10*60*1000;
+    const isPast   = timeToEv < 0 && !isActive;
 
-  function renderNextEvent(time) {
+    const item = document.createElement('div');
+    item.className = 'event-item' + (isPast ? ' past' : '') + (isActive ? ' active' : '');
 
-    const pin = document.getElementById('next-event-pin');
-    const nextIdx = events.findIndex(ev => (new Date(ev.time).getTime() - time) > 0);
-    if (nextIdx === -1) {
-      pin.innerHTML = `<div class="event-name" style="color:var(--text-dim);font-size:16px">Mission complete</div>`;
-      return;
-    }
-    const next = events[nextIdx];
-    const evTime = new Date(next.time).getTime();
-    const timeToEv = evTime - time;    
-    pin.innerHTML = `
-      <div class="event-item next" style="border-bottom:none;margin:0;padding:0">
-        <div class="event-dot"></div>
-        <div class="event-body">
-          <div class="event-name">${next.name}</div>
-          <div class="event-time">
-            <span>T-${fmtDuration(timeToEv)}</span>
-            <span>${fmtNiceTime(evTime)}</span>
-          </div>          
+    if (isPast) {
+      remainStr = "T+" + fmtDuration(timeToEv);
+      timeStr = fmtNiceTime(evTime)
+    } else {
+      remainStr = "T-" + fmtDuration(timeToEv);
+      timeStr = fmtNiceTime(evTime)
+    } 
+
+    item.innerHTML = `
+      <div class="event-dot"></div>
+      <div class="event-body">
+        <div class="event-name" title="${ev.name}">${ev.name}</div>
+        <div class="event-time">
+          <span>${remainStr}</span>
+          <span>${timeStr}</span>
         </div>
       </div>`;
+    eventsList.appendChild(item);
+  });
+
+  // Scroll to active event
+  const activeEl = eventsList.querySelector('.event-item.active, .event-item.next');
+  if (activeEl) {
+    activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
-  function renderEvents(time) {
-    
-    eventsList.innerHTML = '';
+}
 
-    // Next Event
-    const nextIdx = events.findIndex(ev => (new Date(ev.time).getTime() - time) > 0);
+// ===============================================================
+// ANIMATION LOOP
+// ===============================================================
 
-    events.forEach((ev, i) => {
-      const evTime = new Date(ev.time).getTime();
-      const timeToEv = evTime - time;
-      const isNext   = i === nextIdx;
-      const isActive = Math.abs(timeToEv) < 10*60*1000;
-      const isPast   = timeToEv < 0 && !isActive;
+// Playback loop
+function rafLoop() {
+  let now = Date.now();
+  let elapsed = now - lastFrame;
+  if (elapsed > frameInterval) {
+    const animSpeed = parseFloat(speedSel.value);
+    curTime += animSpeed * elapsed;
+    updateMain(curTime);
+    lastFrame = now;
+  }
+  if (playing) rafId = requestAnimationFrame(rafLoop);
+}
 
-      const item = document.createElement('div');
-      item.className = 'event-item' + (isPast ? ' past' : '') + (isActive ? ' active' : '');
+// Main update function, to be called by the animation loop
+function updateMain(time) {
 
-      if (isPast) {
-        remainStr = "T+" + fmtDuration(timeToEv);
-        timeStr = fmtNiceTime(evTime)
-      } else {
-        remainStr = "T-" + fmtDuration(timeToEv);
-        timeStr = fmtNiceTime(evTime)
-      } 
+  // Mission Elapsed Time; can be negative
+  MET = time - tLaunch;
 
-      item.innerHTML = `
-        <div class="event-dot"></div>
-        <div class="event-body">
-          <div class="event-name" title="${ev.name}">${ev.name}</div>
-          <div class="event-time">
-            <span>${remainStr}</span>
-            <span>${timeStr}</span>
-          </div>
-        </div>`;
-      eventsList.appendChild(item);
-    });
-
-    // Scroll to active event
-    const activeEl = eventsList.querySelector('.event-item.active, .event-item.next');
-    if (activeEl) {
-      activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
-
+  // Moon position, label and SOI
+  var posvelM = interpPosVelAtTime(dataM, time);
+  if (posvelM) {
+    _ms = offsetSphere(ms0, posvelM.x, posvelM.y, posvelM.z);
+    _mSOI = offsetSphere(mSOI, posvelM.x, posvelM.y, posvelM.z);
+    // Mesh sphere
+    // fig.data[1] = {
+    //   ...fig.data[1],
+    //   x: ms.x, y: ms.y, z: ms.z,
+    //   visible: true
+    // }
+    // Moon
+    fig.data[1].x = _ms.x.map(row => [...row]);
+    fig.data[1].y = _ms.y.map(row => [...row]);
+    fig.data[1].z = _ms.z.map(row => [...row]);
+    // SOI
+    fig.data[8].x = _mSOI.x.map(row => [...row]);
+    fig.data[8].y = _mSOI.y.map(row => [...row]);
+    fig.data[8].z = _mSOI.z.map(row => [...row]);
+    // Label
+    fig.data[6].x = [posvelM.x];
+    fig.data[6].y = [posvelM.y];
+    fig.data[6].z = [posvelM.z+MOON_R*1.5];
   }
 
-  // ===============================================================
-  // Animation and time controls
-  // ===============================================================
+  if (MET < 0) {
 
-  const scrubber  = document.getElementById('scrubber');
-  // const timeLabel = document.getElementById('speed-label');
-  const btnPlay   = document.getElementById('btn-play');
-  const btnRt     = document.getElementById('btn-rt');
-  const speedSel  = document.getElementById('speed-select');
-  const frameSel  = document.getElementById('frame-select');
-  const cdDisplay = document.getElementById('countdown-display');
-  const clockDsp  = document.getElementById('clock-display');
-  const notesDiv  = document.getElementById('notes-div');
+    cdDisplay.textContent = 'T-' + fmtElapsed(MET);
+    cdDisplay.className = 'prev';
 
-  let curTime = Date.now();
-  let playing = false;
-  let rafId = null;
+    // Hide spacecraft and elapsed trajectory    
+    fig.data[3].visible = false;
+    fig.data[4].visible = false;
+    document.getElementById('telem-alt').textContent = '—';
+    document.getElementById('telem-moon').textContent = '—';
+    document.getElementById('telem-speed').textContent = '—';
 
-  function updateMain(time) {
+  } else {
 
-    // Mission Elapsed Time; can be negative
-    MET = time - tLaunch;
+    cdDisplay.textContent = 'T+' + fmtElapsed(MET);
+    cdDisplay.className = 'past';
 
-    // Moon position, label and SOI
-    posvelM = interpPosVelAtTime(dataM, time);
-    if (posvelM) {
-      _ms = offsetSphere(ms0, posvelM.x, posvelM.y, posvelM.z);
-      _mSOI = offsetSphere(mSOI, posvelM.x, posvelM.y, posvelM.z);
-      // Mesh sphere
-      // fig.data[1] = {
-      //   ...fig.data[1],
-      //   x: ms.x, y: ms.y, z: ms.z,
-      //   visible: true
+    // Only display telemetry and position if past data start
+    if (time >= tDataStart && time <= tDataEnd) {
+
+      let f = (time - tDataStart) / (tDataEnd - tDataStart);
+
+      const cutIdx = Math.round(f * (N - 1));
+      const posvel = interpPosVelAtTime(dataS, time);
+
+      // Update spacecraft "elapsed" trajectory
+      // fig.data[3] = {
+      //   ...fig.data[3],
+      //   x: dataS.x.slice(0, cutIdx + 1),
+      //   y: dataS.y.slice(0, cutIdx + 1),
+      //   z: dataS.z.slice(0, cutIdx + 1),
+      //   visible: true,
       // }
-      // Moon
-      fig.data[1].x = _ms.x.map(row => [...row]);
-      fig.data[1].y = _ms.y.map(row => [...row]);
-      fig.data[1].z = _ms.z.map(row => [...row]);
-      // SOI
-      fig.data[8].x = _mSOI.x.map(row => [...row]);
-      fig.data[8].y = _mSOI.y.map(row => [...row]);
-      fig.data[8].z = _mSOI.z.map(row => [...row]);
-      // Label
-      fig.data[6].x = [posvelM.x];
-      fig.data[6].y = [posvelM.y];
-      fig.data[6].z = [posvelM.z+MOON_R*1.5];
-    }
+      fig.data[3].x = dataS.x.slice(0, cutIdx + 1);
+      fig.data[3].y = dataS.y.slice(0, cutIdx + 1);
+      fig.data[3].z = dataS.z.slice(0, cutIdx + 1);
+      fig.data[3].visible = true;        
+      
+      // Update spacecraft position
+      // fig.data[4] = {
+      //   ...fig.data[4],
+      //   x: [posvel.x],
+      //   y: [posvel.y],
+      //   z: [posvel.z],
+      //   visible: true,
+      // }
+      // Spacecraft marker
+      fig.data[4].x = [posvel.x];
+      fig.data[4].y = [posvel.y];
+      fig.data[4].z = [posvel.z];
+      fig.data[4].visible = true;        
 
-    if (MET < 0) {
+      // Sidebar telemetry
+      const alt = Math.sqrt(posvel.x**2 + posvel.y**2 + posvel.z**2) - EARTH_R;
+      const speed = Math.sqrt(posvel.vx**2 + posvel.vy**2 + posvel.vz**2);
+      const dMoon = Math.sqrt((posvel.x-posvelM.x)**2 + (posvel.y-posvelM.y)**2 + (posvel.z-posvelM.z)**2);
+      // const dMoon = 0;
 
-      cdDisplay.textContent = 'T-' + fmtElapsed(MET);
-      cdDisplay.className = 'prev';
+      document.getElementById('telem-alt').textContent  = alt > 0 ? alt.toLocaleString('en',{maximumFractionDigits:0}) + ' km' : '—';
+      document.getElementById('telem-moon').textContent = dMoon.toLocaleString('en',{maximumFractionDigits:0}) + ' km';
+      document.getElementById('telem-speed').textContent  = speed.toFixed(2) + ' km/s';
 
-      // Hide spacecraft and elapsed trajectory    
+    } else {
+
+      // Hide plotly spacecraft position
       fig.data[3].visible = false;
       fig.data[4].visible = false;
       document.getElementById('telem-alt').textContent = '—';
       document.getElementById('telem-moon').textContent = '—';
       document.getElementById('telem-speed').textContent = '—';
 
-    } else {
-
-      cdDisplay.textContent = 'T+' + fmtElapsed(MET);
-      cdDisplay.className = 'past';
-
-      // Only display telemetry and position if past data start
-      if (time >= tDataStart && time <= tDataEnd) {
-
-        let f = (time - tDataStart) / (tDataEnd - tDataStart);
-
-        const cutIdx = Math.round(f * (N - 1));
-        const posvel = interpPosVelAtTime(dataS, time);
-
-        // Update spacecraft "elapsed" trajectory
-        // fig.data[3] = {
-        //   ...fig.data[3],
-        //   x: dataS.x.slice(0, cutIdx + 1),
-        //   y: dataS.y.slice(0, cutIdx + 1),
-        //   z: dataS.z.slice(0, cutIdx + 1),
-        //   visible: true,
-        // }
-        fig.data[3].x = dataS.x.slice(0, cutIdx + 1);
-        fig.data[3].y = dataS.y.slice(0, cutIdx + 1);
-        fig.data[3].z = dataS.z.slice(0, cutIdx + 1);
-        fig.data[3].visible = true;        
-        
-        // Update spacecraft position
-        // fig.data[4] = {
-        //   ...fig.data[4],
-        //   x: [posvel.x],
-        //   y: [posvel.y],
-        //   z: [posvel.z],
-        //   visible: true,
-        // }
-        // Spacecraft marker
-        fig.data[4].x = [posvel.x];
-        fig.data[4].y = [posvel.y];
-        fig.data[4].z = [posvel.z];
-        fig.data[4].visible = true;        
-
-        // Sidebar telemetry
-        const alt = Math.sqrt(posvel.x**2 + posvel.y**2 + posvel.z**2) - EARTH_R;
-        const speed = Math.sqrt(posvel.vx**2 + posvel.vy**2 + posvel.vz**2);
-        const dMoon = Math.sqrt((posvel.x-posvelM.x)**2 + (posvel.y-posvelM.y)**2 + (posvel.z-posvelM.z)**2);
-        // const dMoon = 0;
-
-        document.getElementById('telem-alt').textContent  = alt > 0 ? alt.toLocaleString('en',{maximumFractionDigits:0}) + ' km' : '—';
-        document.getElementById('telem-moon').textContent = dMoon.toLocaleString('en',{maximumFractionDigits:0}) + ' km';
-        document.getElementById('telem-speed').textContent  = speed.toFixed(2) + ' km/s';
-
-      } else {
-
-        // Hide plotly spacecraft position
-        fig.data[3].visible = false;
-        fig.data[4].visible = false;
-        document.getElementById('telem-alt').textContent = '—';
-        document.getElementById('telem-moon').textContent = '—';
-        document.getElementById('telem-speed').textContent = '—';
-
-      }
-
     }
 
-    // Mission Phase
-    const phase = time < tLaunch ? 'Pre-launch'
-      : time < milestones["TLI"].time ? 'Earh orbit'
-      : time < milestones["MOON_SOI_ENTRY"].time ? 'Trans-lunar coast'
-      : time < milestones["MOON_SOI_EXIT"].time ? 'Lunar space'
-      : time < milestones["ENTRY_INT"].time ? 'Earth return coast'
-      : time < milestones["MISSION_END"].time ? 'Entry & landing'
-      : 'Mission ended';
-    document.getElementById('telem-phase').textContent = phase;
-
-    // Mission clock
-    const src = playing ? 'PLAYBACK' : 'TIME';
-    const dt = new Date(time);
-    if (!document.getElementById('time-format').checked) {;
-      displayTime = dt.toISOString().replace('T',' ').slice(0,19) + ' UTC';
-    } else {
-      displayTime = dt.getFullYear() + "-" + pad(dt.getMonth()+1) + "-" + pad(dt.getDate()) + " " + pad(dt.getHours()) + ":" + pad(dt.getMinutes()) + ":" + pad(dt.getSeconds());
-    }
-    clockDsp.textContent = displayTime;
-
-    // Update scrubber
-    f = (time - tLaunch)/(tEnd - tLaunch);
-    scrubber.value = Math.round(f * 10000);
-    // timeLabel.textContent = fmtNiceTime(time);
-    
-    // Update events
-    renderNextEvent(time);
-    renderEvents(time);
-
-    // Batch apply all Plotly updates
-    const liveCamera = getLiveCamera();
-    if (liveCamera && !isDragging) layout.scene.camera = liveCamera;
-    if (!isDragging) Plotly.react('plot', fig.data, layout);
-
   }
 
-  // Playback loop
-  function rafLoop() {
-    let now = Date.now();
-    let elapsed = now - lastFrame;
-    if (elapsed > frameInterval) {
-      const animSpeed = parseFloat(speedSel.value);
-      curTime += animSpeed * elapsed;
-      updateMain(curTime);
-      lastFrame = now;
-    }
-    if (playing) rafId = requestAnimationFrame(rafLoop);
-  }
+  // Mission Phase
+  const phase = time < tLaunch ? 'Pre-launch'
+    : time < milestones["TLI"].time ? 'Earh orbit'
+    : time < milestones["MOON_SOI_ENTRY"].time ? 'Trans-lunar coast'
+    : time < milestones["MOON_SOI_EXIT"].time ? 'Lunar space'
+    : time < milestones["ENTRY_INT"].time ? 'Earth return coast'
+    : time < milestones["MISSION_END"].time ? 'Entry & landing'
+    : 'Mission ended';
+  document.getElementById('telem-phase').textContent = phase;
 
-  function startPlay() {
-    playing = true;
-    lastFrame = Date.now();
-    btnPlay.textContent = '⏸ PAUSE';
-    btnPlay.classList.add('active');
-    rafId = requestAnimationFrame(rafLoop);
+  // Mission clock
+  const src = playing ? 'PLAYBACK' : 'TIME';
+  const dt = new Date(time);
+  if (!document.getElementById('time-format').checked) {;
+    displayTime = dt.toISOString().replace('T',' ').slice(0,19) + ' UTC';
+  } else {
+    displayTime = dt.getFullYear() + "-" + pad(dt.getMonth()+1) + "-" + pad(dt.getDate()) + " " + pad(dt.getHours()) + ":" + pad(dt.getMinutes()) + ":" + pad(dt.getSeconds());
   }
+  clockDsp.textContent = displayTime;
 
-  function stopPlay() {
-    playing = false;
-    btnPlay.textContent = '▶ PLAY';
-    btnPlay.classList.remove('active');
-    if (rafId) cancelAnimationFrame(rafId);
-  }
+  // Update scrubber
+  f = (time - tLaunch)/(tEnd - tLaunch);
+  scrubber.value = Math.round(f * 10000);
+  // timeLabel.textContent = fmtNiceTime(time);
+  
+  // Update events
+  renderNextEvent(time);
+  renderEvents(time);
 
-  function jumpToNow() {
-    curTime = Date.now();
-    updateMain(curTime);
-    startPlay();    
-  }
+  // Batch apply all Plotly updates
+  const liveCamera = getLiveCamera();
+  if (liveCamera && !isDragging) layout.scene.camera = liveCamera;
+  if (!isDragging) Plotly.react('plot', fig.data, layout);
 
-  function updateFromScrubber() {
-    stopPlay();
-    let offset = scrubber.value / 10000;
-    curTime  = tLaunch + offset * (tEnd - tLaunch);
-    updateMain(curTime);
-  }
+}
 
-  function setCoordFrame(idx) {
-    dataS = all_dataS[idx];
-    dataM = all_dataM[idx];
-    createPlot();
-    updateMain(curTime);
-  }
+// ===============================================================
+// UI CONTROLS
+// ===============================================================
+
+function startPlay() {
+  playing = true;
+  lastFrame = Date.now();
+  btnPlay.textContent = '⏸ PAUSE';
+  btnPlay.classList.add('active');
+  rafId = requestAnimationFrame(rafLoop);
+}
+
+function stopPlay() {
+  playing = false;
+  btnPlay.textContent = '▶ PLAY';
+  btnPlay.classList.remove('active');
+  if (rafId) cancelAnimationFrame(rafId);
+}
+
+function jumpToNow() {
+  curTime = Date.now();
+  updateMain(curTime);
+  startPlay();    
+}
+
+function updateFromScrubber() {
+  stopPlay();
+  let offset = scrubber.value / 10000;
+  curTime  = tLaunch + offset * (tEnd - tLaunch);
+  updateMain(curTime);
+}
+
+function setCoordFrame(idx) {
+  dataS = all_dataS[idx];
+  dataM = all_dataM[idx];
+  createPlot();
+  updateMain(curTime);
+}
+
+// ===============================================================
+// INITIALIZATION
+// ===============================================================
+
+async function init() {
+
+  fig = document.getElementById('plot');
+
+  // DATA LOADING
+
+  // Load Spacecraft and Moon trajectory data in multiple frames
+  // format: { time: ISO string, x, y, z in meters, vx, vy, vz in m/s}
+  // const dataS = await loadTrajectoryCSV('Artemis2_geocentric.csv');
+  // const dataM = await loadTrajectoryCSV('Moon_geocentric.csv');
+  all_dataS = [
+    await loadTrajectoryCSV('data/Artemis2_geocentric.csv'),
+    await loadTrajectoryCSV('data/Artemis2_orbit_plane.csv'),
+    await loadTrajectoryCSV('data/Artemis2_corotating_mean.csv'),
+    await loadTrajectoryCSV('data/Artemis2_corotating_inst.csv'),
+    // await loadTrajectoryCSV('Artemis2_corotating_fixed.csv'),
+  ]
+  all_dataM = [
+    await loadTrajectoryCSV('data/Moon_geocentric.csv'),
+    await loadTrajectoryCSV('data/Moon_orbit_plane.csv'),
+    await loadTrajectoryCSV('data/Moon_corotating_mean.csv'),
+    await loadTrajectoryCSV('data/Moon_corotating_inst.csv'),
+    // await loadTrajectoryCSV('Moon_corotating_fixed.csv'),
+  ]
+
+  // Load and parse events from JSON file
+  const _response = await fetch('events.json');
+  const events_json = await _response.json();
+  milestones = Object.fromEntries(
+    Object.entries(events_json.milestones).map(([name, isostr]) => {
+      date = new Date(isostr);
+      return [name, {"time": date.getTime(), "Date": date, "isostr": isostr}];
+    })
+  );
+  const _events = events_json.events.map(ev => {
+    date = new Date(ev.isostr);
+    return {"time": date.getTime(), "Date": date, "isostr": ev.isostr, "name": ev.name}
+  })
+  events = _events.sort((a, b) => a.time - b.time);
+
+  // Parse stuff -- distances in km, speeds in km/s
+  dataS = all_dataS[1];
+  dataM = all_dataM[1];
+  times = dataS.t;
+  N = times.length;
+  tLaunch = milestones["LAUNCH"].time;
+  tEnd = milestones['MISSION_END'].time;
+  tDataStart = times[0].getTime();
+  tDataEnd = times[N-1].getTime();
+
+  // Create mesh spheres for the Earth and Moon
+  es = genSphereSurface(0, 0, 0, EARTH_R, 32);
+  ms0 = genSphereSurface(0, 0, 0, MOON_R, 16);
+  mSOI = genSphereSurface(0, 0, 0, MOON_SOI_R, 32)
+
+  // Init UI elements
+  eventsList = document.getElementById('events-list');
+  scrubber  = document.getElementById('scrubber');
+  btnPlay   = document.getElementById('btn-play');
+  btnRt     = document.getElementById('btn-rt');
+  speedSel  = document.getElementById('speed-select');
+  frameSel  = document.getElementById('frame-select');
+  cdDisplay = document.getElementById('countdown-display');
+  clockDsp  = document.getElementById('clock-display');
+  notesDiv  = document.getElementById('notes-div');
+
+  // Create Plotly.js plot
+  createPlot();
 
   // Frame control listeners
   frameSel.addEventListener('change', (event) => {
@@ -666,56 +721,17 @@ async function init() {
   scrubber.addEventListener('input', updateFromScrubber);
 
   // View dragging workaround 
-  let isDragging = false;
-  const canvas = document.querySelector('#plot canvas');
+  isDragging = false;
+  canvas = document.querySelector('#plot canvas');
   canvas.addEventListener('mousedown', () => isDragging = true);
   window.addEventListener('mouseup', () => isDragging = false);
 
   notesDiv.innerHTML = `Data from ${events_json.source} (${events_json.rev_date}) • By meithan cc-by-sa`;
 
-  function getLiveCamera() {
-    try {
-      const glCam = fig._fullLayout.scene._scene.glplot.camera;
-      const cam = {
-        eye:    { x: glCam.eye[0],    y: glCam.eye[1],    z: glCam.eye[2]    },
-        center: { x: glCam.center[0], y: glCam.center[1], z: glCam.center[2] },
-        up:     { x: glCam.up[0],     y: glCam.up[1],     z: glCam.up[2]     }
-      };
-      // console.log('isDragging:', isDragging, 'eye:', JSON.stringify(cam.eye));
-      return cam;
-    } catch(e) {
-      console.log('getLiveCamera failed:', e);
-      return null;
-    }
-  }
-
-  // On load, set time to current time and play
+  // On load, set state to LIVE
+  curTime = Date.now();
   updateMain(Date.now());
   startPlay();
-
-  // ================================================================
-  // Load and parse trajectory data in CSV with the following fields:
-  // yyy-mm-ddThh:mm:ssZ,x,y,z,vx,v,yz
-  // Positions in km, speeds in km/s
-  // ================================================================
-  async function loadTrajectoryCSV(url) {
-    const resp = await fetch(url);
-    const text = await resp.text();
-    // const lines = text.trim().split('\n').slice(1); // skip header
-    const lines = text.trim().split('\n');
-    t = []; x = []; y = []; z = []; vx = []; vy = []; vz = [];
-    lines.forEach(line => {
-      const [_t, _x, _y, _z, _vx, _vy, _vz] = line.split(',');
-      t.push(new Date(_t));
-      x.push(parseFloat(_x));
-      y.push(parseFloat(_y));
-      z.push(parseFloat(_z));
-      vx.push(parseFloat(_vx));
-      vy.push(parseFloat(_vy));
-      vz.push(parseFloat(_vz));
-    });
-    return {t, x, y, z, vx, vy, vz}
-  }
 
 }
 
