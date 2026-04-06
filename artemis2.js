@@ -583,7 +583,7 @@ function updateMain(time) {
       fig.data[traceIdx["craft"]].visible = true;        
 
       // Sidebar telemetry
-      const alt = Math.sqrt(posvel.x**2 + posvel.y**2 + posvel.z**2) - EARTH_R;
+      const alt = Math.sqrt(posvel.x**2 + posvel.y**2 + posvel.z**2) - (refFrame == "FRAME_FLYBY" ? MOON_R : EARTH_R);
       const speed = Math.sqrt(posvel.vx**2 + posvel.vy**2 + posvel.vz**2);
       const dMoon = Math.sqrt((posvel.x-posvelM.x)**2 + (posvel.y-posvelM.y)**2 + (posvel.z-posvelM.z)**2);
       // const dMoon = 0;
