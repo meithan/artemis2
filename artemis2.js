@@ -18,13 +18,16 @@ const data_files = {
 // Animation
 const FPS = 10;
 const frameInterval = 1000 / FPS;
-// const defaultFrame = "FRAME_ECI";
-const defaultFrame = "FRAME_FLYBY";
 var lastFrame = 0;
 var playing = false;
 var live = false;
 var rafId;
 var isDragging;
+
+// Reference frame
+// const defaultFrame = "FRAME_ECI";
+const defaultFrame = "FRAME_MOON_PLANE";
+// const defaultFrame = "FRAME_FLYBY";
 var refFrame;
 
 // Plotly
@@ -348,7 +351,7 @@ function createPlot() {
     plot_bgcolor:  'rgba(0,0,0,0)',
     margin: { l: 0, r: 0, t: 0, b: 0 },
     scene: {
-      // dragmode: "turntable",
+      dragmode: "orbit",
       // uirevision: 'true',
       bgcolor: '#000',
       xaxis: { ...axisStyle, title: { text: 'X (km)', ...axisStyle.title }, range: axisRange, visible: false },
@@ -360,11 +363,11 @@ function createPlot() {
       //   up: {x: 1, y: -0.35, z: 0},
       //   center: {x: -0.077, y: -0.23, z: 0}
       // },
-      camera: {
-        eye: {x: 0, y: 0, z: 0.25},
-        up: {x: 0, y: 0, z: 1},
-        center: {x: 0, y: 0, z: 0}
-      },      
+      // camera: {
+      //   eye: {x: 0, y: 0, z: 0.25},
+      //   up: {x: 0, y: 0, z: 1},
+      //   center: {x: 0, y: 0, z: 0}
+      // },
     },
     legend: {
       font: { color: 'rgba(200,230,234,0.5)', size: 14, family: 'Share Tech Mono' },
@@ -706,13 +709,16 @@ async function setRefFrame(_refFrame) {
     };
   } else {
     camera = {
-      eye: {x: -0.077, y: -0.23, z: 0.5},
-      up: {x: 1, y: -0.35, z: 0},
-      center: {x: -0.077, y: -0.23, z: 0}
+      center: { x: -0.07695509380516573, y: -0.19977415881095667, z: 0 },
+      eye: { x: -0.07695509380516576, y: -0.19977415881095667, z: 0.5581923634002892 },
+      up: {x: 0, y: 0, z: 1}
     };
+    console.log(camera);
   }
   layout.scene.camera = camera;
   Plotly.relayout('plot', {'scene.camera': camera});
+
+  frameSel.value = refFrame;
 
   updateMain(curTime);
 
@@ -778,8 +784,6 @@ async function init() {
   // Load default state
   curTime = Date.now();
   await setRefFrame(defaultFrame);
-  createPlot();
-  updateMain(curTime);
   goLive();
 
   // View dragging workaround 
