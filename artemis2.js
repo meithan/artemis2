@@ -550,7 +550,7 @@ function updateMain(time) {
     cdDisplay.textContent = 'T+' + fmtElapsed(MET);
     cdDisplay.className = 'past';
 
-    // Only display telemetry and position if past data start
+    // Only display telemetry and position during mission
     if (time >= tDataStart && time <= tDataEnd) {
 
       let f = (time - tDataStart) / (tDataEnd - tDataStart);
@@ -597,7 +597,7 @@ function updateMain(time) {
 
     } else {
 
-      // Hide plotly spacecraft position
+      // Hide plotly spacecraft position, trail and telemetry
       fig.data[traceIdx["pastTrail"]].visible = false;
       fig.data[traceIdx["craft"]].visible = false;
       document.getElementById('telem-alt').textContent = '—';
@@ -619,7 +619,6 @@ function updateMain(time) {
   document.getElementById('telem-phase').textContent = phase;
 
   // Mission clock
-  const src = playing ? 'PLAYBACK' : 'TIME';
   const dt = new Date(time);
   if (!document.getElementById('time-format').checked) {;
     displayTime = dt.toISOString().replace('T',' ').slice(0,19) + ' UTC';
@@ -631,7 +630,6 @@ function updateMain(time) {
   // Update scrubber
   f = (time - tLaunch)/(tEnd - tLaunch);
   scrubber.value = Math.round(f * 10000);
-  // timeLabel.textContent = fmtNiceTime(time);
   
   // Update events
   renderNextEvent(time);
@@ -640,8 +638,8 @@ function updateMain(time) {
   // Batch apply all Plotly updates
   // const liveCamera = getLiveCamera();
   // if (liveCamera && !isDragging) layout.scene.camera = liveCamera;
-  // if (!isDragging) Plotly.react('plot', fig.data, layout);
-  Plotly.react('plot', fig.data, layout);
+  if (!isDragging) Plotly.react('plot', fig.data, layout);
+  // Plotly.react('plot', fig.data, layout);
 
 }
 
