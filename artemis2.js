@@ -477,6 +477,13 @@ function renderEvents(time) {
 
 }
 
+function scrollToNextEvent(time) {
+  const nextIdx = events.findIndex(ev => (new Date(ev.time).getTime() - time) > 0);
+  const ev = events[nextIdx];
+  const nextEvent = eventsList.querySelector(`[title=\"${ev.name}\"]`);
+  nextEvent.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
 // ===============================================================
 // ANIMATION LOOP
 // ===============================================================
@@ -782,7 +789,9 @@ async function init() {
   // Load default state
   curTime = Date.now();
   await setRefFrame(defaultFrame);
+  scrollToNextEvent(curTime);
   goLive();
+
 
   // View dragging workaround 
   isDragging = false;
