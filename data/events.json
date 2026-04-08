@@ -1,6 +1,6 @@
 {
   "source": "JPL Horizons",
-  "rev_date": "2026-04-07 20:10",
+  "rev_date": "2026-04-08 02:56",
   "milestones": {
     "LAUNCH": "2026-04-01T22:35Z",
     "TLI": "2026-04-02T23:54Z",
@@ -96,7 +96,7 @@
       "name": "Orion exits lunar sphere of influence"
     },
     {
-      "isostr": "2026-04-08T00:04:12Z",
+      "isostr": "2026-04-08T00:03:12Z",
       "name": "Return trajectory correction burn #1"
     },
     {
