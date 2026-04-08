@@ -735,7 +735,7 @@ async function init() {
   refFrame = defaultFrame;
 
   // Load and parse events from JSON file
-  const _response = await fetch('events.json');
+  const _response = await fetch('data/events.json');
   const events_json = await _response.json();
   milestones = Object.fromEntries(
     Object.entries(events_json.milestones).map(([name, isostr]) => {
