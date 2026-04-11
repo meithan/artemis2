@@ -1,14 +1,14 @@
 {
   "source": "JPL Horizons",
-  "rev_date": "2026-04-09 07:45",
+  "rev_date": "2026-04-10 19:28",
   "milestones": {
     "LAUNCH": "2026-04-01T22:35Z",
     "TLI": "2026-04-02T23:54Z",
     "MOON_SOI_ENTRY": "2026-04-06T05:38Z",
     "MOON_SOI_EXIT": "2026-04-07T17:27Z",
-    "ENTRY_INT": "2026-04-11T00:04Z",
-    "SPLASHDOWN": "2026-04-11T00:17Z",
-    "MISSION_END": "2026-04-11T00:32Z"
+    "ENTRY_INT": "2026-04-10T23:53Z",
+    "SPLASHDOWN": "2026-04-11T00:07Z",
+    "MISSION_END": "2026-04-11T00:22Z"
   },
   "events": [
     {
@@ -77,7 +77,7 @@
     },
     {
       "isostr": "2026-04-06T03:03:35Z",
-      "name": "End OTC-3 (18 sec, delta-v 3 m/s)"
+      "name": "End OTC-3 (length 18 sec, delta-v 3 m/s)"
     },
     {
       "isostr": "2026-04-06T05:38:44Z",
@@ -101,35 +101,39 @@
     },
     {
       "isostr": "2026-04-09T02:55:12Z",
-      "name": "Manual piloting demonstration"
+      "name": "[CANCELLED] Manual piloting demonstration"
     },
     {
-      "isostr": "2026-04-10T03:04:12Z",
+      "isostr": "2026-04-10T01:53:12Z",
       "name": "Return trajectory correction burn #2"
     },
     {
-      "isostr": "2026-04-10T19:04:12Z",
+      "isostr": "2026-04-10T17:53:12Z",
       "name": "Return trajectory correction burn #3"
     },
     {
-      "isostr": "2026-04-10T23:44:12Z",
-      "name": "Orion crew and service module separation"
+      "isostr": "2026-04-10T23:33:12Z",
+      "name": "Orion 2 crew and service module separation"
     },
     {
-      "isostr": "2026-04-10T23:47:12Z",
+      "isostr": "2026-04-10T23:36:12Z",
       "name": "Crew module raise burn"
     },
     {
-      "isostr": "2026-04-11T00:04:12Z",
+      "isostr": "2026-04-10T23:53:12Z",
       "name": "Entry interface (122 km above Earth)"
     },
     {
-      "isostr": "2026-04-11T00:17:12Z",
+      "isostr": "2026-04-11T00:07:12Z",
       "name": "Splashdown, Pacific Ocean, off Baja Cali."
     },
     {
-      "isostr": "2026-04-11T00:32:12Z",
-      "name": "Orion final power down"
+      "isostr": "2026-04-11T00:22:12Z",
+      "name": "Orion 2 final power down"
+    },
+    {
+      "isostr": "2026-04-11T00:52:12Z",
+      "name": "Astronaut egress complete"
     }
   ]
 }
