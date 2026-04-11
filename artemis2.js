@@ -472,7 +472,7 @@ function renderEvents(time) {
   // Scroll to active event
   const activeEl = eventsList.querySelector('.event-item.active, .event-item.next');
   if (activeEl) {
-    activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    activeEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
 
 }
