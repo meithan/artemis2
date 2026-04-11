@@ -505,8 +505,8 @@ function rafLoop() {
 // Main update function, to be called by the animation loop
 function updateMain(time) {
 
-  // Mission Elapsed Time; can be negative
-  MET = time - tLaunch;
+  // Mission Elapsed Time; can be negative, stops increasing after mission end
+  MET = Math.min(time, tEnd) - tLaunch;
 
   // Moon position, label and SOI
   var posvelM = interpPosVelAtTime(dataM, time);
