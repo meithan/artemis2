@@ -479,6 +479,7 @@ function renderEvents(time) {
 
 function scrollToNextEvent(time) {
   const nextIdx = events.findIndex(ev => (new Date(ev.time).getTime() - time) > 0);
+  if (nextIdx < 0) return;
   const ev = events[nextIdx];
   const nextEvent = eventsList.querySelector(`[title=\"${ev.name}\"]`);
   nextEvent.scrollIntoView({ block: 'center', behavior: 'smooth' });
